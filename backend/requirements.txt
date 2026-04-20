@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+python-multipart
+httpx
+crewai
+crewai-tools
+ollama
+pillow
+scikit-learn
+numpy
