@@ -10,5 +10,7 @@ ollama
 pillow
 scikit-learn
 numpy
+pandas
+xgboost
 tensorflow-cpu==2.20.0
 litellm

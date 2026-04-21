@@ -107,4 +107,4 @@ def make_triage_agent() -> Agent:
         tools=[],  # TODO: add UrgencyCalculatorTool() here
         llm=_ollama_llm(),
         verbose=True,
-    )
+    )   
