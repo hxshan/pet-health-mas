@@ -5,13 +5,21 @@ Each agent is wired to its tools once the tools are implemented.
 Teams: implement your tool in app/tools/<name>/, then uncomment the import
 and pass it into your agent's `tools=[...]` list below.
 """
-from crewai import Agent
+from crewai import Agent, LLM
 
 from app.config import settings
 # from app.tools.intake_tools import EntityExtractorTool       # uncomment when ready
 # from app.tools.symptom_tools import SymptomClassifierTool    # uncomment when ready
-# from app.tools.image_tools import ImageClassifierTool        # uncomment when ready
+from app.tools.image_tools import ImageClassifierTool
 # from app.tools.triage_tools import UrgencyCalculatorTool     # uncomment when ready
+
+
+def _ollama_llm() -> LLM:
+    """Build a CrewAI LLM instance pointing at the local Ollama server."""
+    return LLM(
+        model=f"ollama/{settings.OLLAMA_MODEL}",
+        base_url=settings.OLLAMA_BASE_URL,
+    )
 
 
 def make_intake_agent() -> Agent:
@@ -31,7 +39,7 @@ def make_intake_agent() -> Agent:
             "never assume facts not stated by the owner."
         ),
         tools=[],  # TODO: add EntityExtractorTool() here
-        llm=f"ollama/{settings.OLLAMA_MODEL}",
+        llm=_ollama_llm(),
         verbose=True,
     )
 
@@ -54,7 +62,7 @@ def make_symptom_agent() -> Agent:
             "state 'low confidence result' and recommend veterinary consultation."
         ),
         tools=[],  # TODO: add SymptomClassifierTool() here
-        llm=f"ollama/{settings.OLLAMA_MODEL}",
+        llm=_ollama_llm(),
         verbose=True,
     )
 
@@ -62,7 +70,6 @@ def make_symptom_agent() -> Agent:
 def make_image_agent() -> Agent:
     """
     Image Assessment Agent — validates image and runs local image ML model.
-    TODO: add tools=[ImageClassifierTool()] once image_tools is implemented.
     """
     return Agent(
         role="Veterinary Image Analyst",
@@ -75,8 +82,8 @@ def make_image_agent() -> Agent:
             "You never hallucinate conditions not present in the classifier output. "
             "If the image is unusable you report that clearly."
         ),
-        tools=[],  # TODO: add ImageClassifierTool() here
-        llm=f"ollama/{settings.OLLAMA_MODEL}",
+        tools=[ImageClassifierTool()],
+        llm=_ollama_llm(),
         verbose=True,
     )
 
@@ -98,6 +105,6 @@ def make_triage_agent() -> Agent:
             "you always recommend veterinary consultation."
         ),
         tools=[],  # TODO: add UrgencyCalculatorTool() here
-        llm=f"ollama/{settings.OLLAMA_MODEL}",
+        llm=_ollama_llm(),
         verbose=True,
     )

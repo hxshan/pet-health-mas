@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Gap between top-2 predictions that triggers uncertainty
     UNCERTAINTY_GAP_THRESHOLD: float = 0.10
 
+    # Path to the CNN skin condition model (relative to backend/ working directory)
+    CNN_MODEL_PATH: str = "artifacts/dog_skin_cnn_mobilenet3.keras"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
