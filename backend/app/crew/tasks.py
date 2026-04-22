@@ -8,6 +8,8 @@ from typing import Optional
 
 from crewai import Agent, Task
 
+from app.agents.symptom_agent.prompt import CONSTRAINTS as SYMPTOM_CONSTRAINTS
+
 
 def build_tasks(
     intake_agent: Agent,
@@ -45,16 +47,19 @@ def build_tasks(
     # ------------------------------------------------------------------
     symptom_task = Task(
         description=(
-            "Using the structured case from the Intake Agent, run the symptom "
-            "classifier tool on the extracted_symptoms list. "
-            "Evaluate the top prediction and confidence. "
-            "Flag uncertainty if confidence is below threshold or if top-2 "
-            "predictions are very close. "
-            "Do NOT invent conditions outside the classifier scope."
+            "You are the Symptom Assessment Agent.\n"
+            "A structured pet case has been prepared. "
+            "Call the symptom_classifier tool once with the pet profile and "
+            "symptom flags from the case. "
+            "Then return the tool output directly as your Final Answer — "
+            "do not add extra reasoning.\n\n"
+            f"{SYMPTOM_CONSTRAINTS}"
         ),
         expected_output=(
-            "JSON with keys: top_prediction, confidence, alternatives, "
-            "uncertainty_flag, possible_out_of_scope, local_interpretation."
+            "A JSON object with keys: assessment_status, top_prediction, "
+            "confidence, alternatives, uncertainty_flag, uncertainty_reason, "
+            "possible_out_of_scope, needs_more_info, missing_fields, "
+            "local_interpretation."
         ),
         agent=symptom_agent,
         context=[intake_task],

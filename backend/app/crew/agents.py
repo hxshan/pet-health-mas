@@ -9,9 +9,10 @@ from crewai import Agent, LLM
 
 from app.config import settings
 # from app.tools.intake_tools import EntityExtractorTool       # uncomment when ready
-# from app.tools.symptom_tools import SymptomClassifierTool    # uncomment when ready
+from app.tools.symptom_tools import SymptomClassifierTool
 from app.tools.image_tools import ImageClassifierTool
 # from app.tools.triage_tools import UrgencyCalculatorTool     # uncomment when ready
+from app.agents.symptom_agent.prompt import ROLE, GOAL, BACKSTORY, CONSTRAINTS
 
 
 def _ollama_llm() -> LLM:
@@ -46,24 +47,22 @@ def make_intake_agent() -> Agent:
 
 def make_symptom_agent() -> Agent:
     """
-    Symptom Assessment Agent — classifies symptoms using a local ML model.
-    TODO: add tools=[SymptomClassifierTool()] once symptom_tools is implemented.
+    Symptom Assessment Agent — classifies symptoms using the local XGBoost model.
+    Role / goal / backstory are defined in app/agents/symptom_agent/prompt.py.
+
+    max_iter=1          — one tool call is all that's needed; prevents the LLM
+                          from looping after a successful tool execution.
+    allow_delegation=False — this agent works alone; no sub-agent hand-off.
     """
     return Agent(
-        role="Veterinary Symptom Analyst",
-        goal=(
-            "Use the symptom classifier to predict likely conditions, "
-            "evaluate confidence, detect uncertainty, and flag possible "
-            "out-of-scope cases."
-        ),
-        backstory=(
-            "You are a bounded diagnostic assistant. You only report conditions "
-            "supported by the local ML model. When confidence is low you clearly "
-            "state 'low confidence result' and recommend veterinary consultation."
-        ),
-        tools=[],  # TODO: add SymptomClassifierTool() here
+        role=ROLE,
+        goal=GOAL,
+        backstory=BACKSTORY,
+        tools=[SymptomClassifierTool()],
         llm=_ollama_llm(),
-        verbose=True,
+        max_iter=1,
+        allow_delegation=False,
+        verbose=False,
     )
 
 

@@ -74,9 +74,17 @@ def _encode(raw: Dict[str, Any]) -> pd.DataFrame:
     Apply stored LabelEncoders to categorical columns and return a
     correctly-ordered DataFrame ready for predict_proba.
 
+    Missing columns are filled with 0 so the LLM can send a partial
+    input and the model still gets a complete feature vector.
     Unknown label values fall back to 0 (matching training-time behaviour).
     """
     d = raw.copy()
+
+    # Fill any missing feature columns with 0 before encoding
+    for col in _feature_columns:
+        if col not in d:
+            d[col] = 0
+
     for col, le in _label_encoders.items():
         if col in d:
             try:

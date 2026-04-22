@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Ollama LLM settings
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3"
+    OLLAMA_MODEL: str = "llama3.1:latest"
 
     # Confidence thresholds for ML predictions
     SYMPTOM_CONFIDENCE_THRESHOLD: float = 0.55
