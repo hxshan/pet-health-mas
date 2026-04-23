@@ -26,19 +26,38 @@ def build_tasks(
     # Task 1 — Intake
     # ------------------------------------------------------------------
     intake_task = Task(
-        description=(
-            "Parse the owner's raw text input. "
-            "Extract: pet profile (species, breed, age, sex, weight), "
-            "reported symptoms, duration/severity hints. "
-            "Identify any missing critical information. "
-            "Output a structured JSON case."
+          description=(
+            "Parse the owner's raw text input.\n\n"
+
+            "STRICT RULES:\n"
+            "- You MUST return ONLY valid JSON\n"
+            "- DO NOT explain anything\n"
+            "- DO NOT include code\n"
+            "- DO NOT include analysis\n"
+            "- DO NOT include markdown\n\n"
+
+            "Extract:\n"
+            "- pet_profile (species, breed, age, sex, weight)\n"
+            "- extracted_symptoms (list)\n"
+            "- structured_case\n"
+            "- follow_up_questions (list)\n"
+            "- image_available (true/false)\n\n"
+
+            "If any field is missing → use 'unknown'\n"
         ),
         expected_output=(
-            "JSON with keys: pet_profile, extracted_symptoms, structured_case, "
-            "follow_up_questions, image_available."
+            "ONLY JSON:\n"
+            "{\n"
+            '  "pet_profile": {},\n'
+            '  "extracted_symptoms": [],\n'
+            '  "structured_case": {},\n'
+            '  "follow_up_questions": [],\n'
+            '  "image_available": false\n'
+            "}"
         ),
         agent=intake_agent,
     )
+
 
     # ------------------------------------------------------------------
     # Task 2 — Symptom Assessment

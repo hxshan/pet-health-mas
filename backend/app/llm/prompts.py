@@ -35,13 +35,51 @@ Required JSON keys:
 }"""
 
 
-def intake_messages(raw_text: str) -> List[Dict[str, str]]:
+def intake_messages(input_text: str):
     return [
-        {"role": "system", "content": INTAKE_SYSTEM},
-        {"role": "user", "content": f"Owner's description:\n{raw_text}"},
+        {
+            "role": "system",
+            "content": (
+                "You are a strict JSON generator.\n"
+                "You MUST return ONLY valid JSON.\n"
+                "DO NOT explain anything.\n"
+                "DO NOT write code.\n"
+                "DO NOT add extra text.\n"
+                "ONLY return JSON.\n"
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"""
+Extract the following fields from the input:
+
+- species
+- breed
+- age
+- sex
+- weight
+- raw_symptoms (list)
+
+Rules:
+- If missing → use "unknown"
+- raw_symptoms MUST be a list
+- Return ONLY JSON
+
+FORMAT:
+{{
+  "species": "",
+  "breed": "",
+  "age": "",
+  "sex": "",
+  "weight": "",
+  "raw_symptoms": []
+}}
+
+INPUT:
+{input_text}
+""",
+        },
     ]
-
-
 # ---------------------------------------------------------------------------
 # Symptom Assessment Agent
 # ---------------------------------------------------------------------------
