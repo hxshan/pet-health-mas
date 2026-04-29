@@ -51,8 +51,9 @@ def intake_messages(input_text: str):
         {
             "role": "user",
             "content": f"""
-Extract the following fields from the input:
+Extract pet information from this input.
 
+Required fields:
 - species
 - breed
 - age
@@ -63,7 +64,8 @@ Extract the following fields from the input:
 Rules:
 - If missing → use "unknown"
 - raw_symptoms MUST be a list
-- Return ONLY JSON
+- DO NOT generate explanations
+- ONLY return JSON
 
 FORMAT:
 {{

@@ -13,4 +13,24 @@ class EntityExtractorTool(BaseTool):
 
         result = chat_json(messages)
 
+        if not isinstance(result, dict):
+            return self._fallback()
+
+        result.setdefault("species", "unknown")
+        result.setdefault("breed", "unknown")
+        result.setdefault("age", "unknown")
+        result.setdefault("sex", "unknown")
+        result.setdefault("weight", "unknown")
+        result.setdefault("raw_symptoms", [])
+
         return result
+
+    def _fallback(self):
+        return {
+            "species": "unknown",
+            "breed": "unknown",
+            "age": "unknown",
+            "sex": "unknown",
+            "weight": "unknown",
+            "raw_symptoms": []
+        }

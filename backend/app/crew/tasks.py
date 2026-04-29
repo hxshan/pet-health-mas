@@ -1,129 +1,140 @@
 """
 CrewAI Task definitions for Pet Health MAS.
 
-Tasks are created fresh on every run (they capture agent + context references).
-Call `build_tasks(...)` from crew_setup.py.
+Tasks are created fresh on every run.
+Agent 1 (Intake) is handled OUTSIDE Crew.
+Crew only runs Agent 2, 3, 4.
 """
-from typing import Optional
 
-from crewai import Agent, Task
+from crewai import Task
 
 
 def build_tasks(
-    intake_agent: Agent,
-    symptom_agent: Agent,
-    image_agent: Agent,
-    triage_agent: Agent,
+    intake_agent,   # NOT USED (kept for compatibility)
+    symptom_agent,
+    image_agent,
+    triage_agent,
     image_available: bool = False,
 ) -> list[Task]:
     """
-    Build and return the ordered task list.
-
-    Task 3 (image assessment) is only added when image_available=True.
+    Build tasks ONLY for:
+    - Agent 2 (Symptom)
+    - Agent 3 (Image - optional)
+    - Agent 4 (Triage)
     """
 
-    # ------------------------------------------------------------------
-    # Task 1 — Intake
-    # ------------------------------------------------------------------
-    intake_task = Task(
-          description=(
-            "Parse the owner's raw text input.\n\n"
-
-            "STRICT RULES:\n"
-            "- You MUST return ONLY valid JSON\n"
-            "- DO NOT explain anything\n"
-            "- DO NOT include code\n"
-            "- DO NOT include analysis\n"
-            "- DO NOT include markdown\n\n"
-
-            "Extract:\n"
-            "- pet_profile (species, breed, age, sex, weight)\n"
-            "- extracted_symptoms (list)\n"
-            "- structured_case\n"
-            "- follow_up_questions (list)\n"
-            "- image_available (true/false)\n\n"
-
-            "If any field is missing → use 'unknown'\n"
-        ),
-        expected_output=(
-            "ONLY JSON:\n"
-            "{\n"
-            '  "pet_profile": {},\n'
-            '  "extracted_symptoms": [],\n'
-            '  "structured_case": {},\n'
-            '  "follow_up_questions": [],\n'
-            '  "image_available": false\n'
-            "}"
-        ),
-        agent=intake_agent,
-    )
-
-
-    # ------------------------------------------------------------------
-    # Task 2 — Symptom Assessment
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
+    # Task 1 — Symptom Assessment (Agent 2)
+    # --------------------------------------------------
     symptom_task = Task(
         description=(
-            "Using the structured case from the Intake Agent, run the symptom "
-            "classifier tool on the extracted_symptoms list. "
-            "Evaluate the top prediction and confidence. "
-            "Flag uncertainty if confidence is below threshold or if top-2 "
-            "predictions are very close. "
-            "Do NOT invent conditions outside the classifier scope."
+            "You receive extracted symptoms from Agent 1.\n\n"
+
+            "Your job:\n"
+            "- Analyze symptoms\n"
+            "- Run symptom classifier tool\n"
+            "- Identify most likely condition\n"
+            "- Provide confidence score\n"
+            "- Suggest alternatives\n\n"
+
+            "Rules:\n"
+            "- DO NOT hallucinate conditions\n"
+            "- Stay within model scope\n"
+            "- Return ONLY valid JSON"
         ),
         expected_output=(
-            "JSON with keys: top_prediction, confidence, alternatives, "
-            "uncertainty_flag, possible_out_of_scope, local_interpretation."
+            "{\n"
+            '  "top_prediction": "",\n'
+            '  "confidence": 0.0,\n'
+            '  "alternatives": [],\n'
+            '  "uncertainty_flag": false,\n'
+            '  "possible_out_of_scope": false,\n'
+            '  "local_interpretation": ""\n'
+            "}"
         ),
         agent=symptom_agent,
-        context=[intake_task],
     )
 
-    # ------------------------------------------------------------------
-    # Task 3 — Image Assessment (conditional)
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
+    # Task 2 — Image Assessment (Agent 3)
+    # --------------------------------------------------
     image_task = Task(
         description=(
-            "Validate the submitted image and run the image classifier tool. "
-            "Assess whether the image is usable and relevant. "
-            "Evaluate prediction reliability. "
-            "If the image is invalid or unusable, set image_validity='unusable'. "
-            "Do NOT hallucinate new conditions."
+            "You receive an image and case context.\n\n"
+
+            "Your job:\n"
+            "- Validate image quality\n"
+            "- Check if image is relevant\n"
+            "- Run image classifier\n"
+            "- Evaluate prediction confidence\n\n"
+
+            "Rules:\n"
+            "- If image unusable → set image_validity='unusable'\n"
+            "- DO NOT hallucinate\n"
+            "- Return ONLY valid JSON"
         ),
         expected_output=(
-            "JSON with keys: image_prediction, confidence, alternatives, "
-            "uncertainty_flag, possible_out_of_scope, image_validity, "
-            "local_interpretation."
+            "{\n"
+            '  "image_prediction": "",\n'
+            '  "confidence": 0.0,\n'
+            '  "alternatives": [],\n'
+            '  "uncertainty_flag": false,\n'
+            '  "possible_out_of_scope": false,\n'
+            '  "image_validity": "valid|unusable",\n'
+            '  "local_interpretation": ""\n'
+            "}"
         ),
         agent=image_agent,
-        context=[intake_task],
     )
 
-    # ------------------------------------------------------------------
-    # Task 4 — Triage & Synthesis
-    # ------------------------------------------------------------------
-    triage_context = [symptom_task, image_task] if image_available else [symptom_task]
+    # --------------------------------------------------
+    # Task 3 — Triage & Synthesis (Agent 4)
+    # --------------------------------------------------
+    triage_context = [symptom_task]
+
+    if image_available:
+        triage_context.append(image_task)
 
     triage_task = Task(
         description=(
-            "Combine the symptom assessment (and image assessment if present). "
-            "Resolve agreement, conflict, or coexisting conditions. "
-            "Assign an urgency level: non-urgent | monitor | vet_soon | urgent. "
-            "Generate a final report. "
-            "If either assessment has uncertainty_flag=True, recommend veterinary "
-            "consultation. Never claim to definitively diagnose any condition."
+            "Combine results from symptom and image analysis.\n\n"
+
+            "Your job:\n"
+            "- Resolve agreement or conflict\n"
+            "- Detect uncertainty\n"
+            "- Assign urgency level\n"
+            "- Generate final report\n\n"
+
+            "Urgency levels:\n"
+            "- non-urgent\n"
+            "- monitor\n"
+            "- vet_soon\n"
+            "- urgent\n\n"
+
+            "Rules:\n"
+            "- NEVER give definitive diagnosis\n"
+            "- Recommend vet if uncertain\n"
+            "- Return ONLY valid JSON"
         ),
         expected_output=(
-            "JSON with keys: primary_assessment, urgency_level, recommendation, "
-            "uncertainty_status, final_report."
+            "{\n"
+            '  "primary_assessment": "",\n'
+            '  "urgency_level": "",\n'
+            '  "recommendation": "",\n'
+            '  "uncertainty_status": "",\n'
+            '  "final_report": {}\n'
+            "}"
         ),
         agent=triage_agent,
         context=triage_context,
     )
 
-    tasks = [intake_task, symptom_task, triage_task]
+    # --------------------------------------------------
+    # FINAL TASK ORDER
+    # --------------------------------------------------
+    tasks = [symptom_task, triage_task]
+
     if image_available:
-        # Insert image task before triage
-        tasks = [intake_task, symptom_task, image_task, triage_task]
+        tasks = [symptom_task, image_task, triage_task]
 
     return tasks
