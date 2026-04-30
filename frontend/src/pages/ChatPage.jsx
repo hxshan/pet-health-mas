@@ -13,13 +13,14 @@ export default function ChatPage() {
   const askedQuestions = useRef(new Set());
   const initialInput = useRef("");
 
-  const sendToBackend = async (answersObj) => {
+  const sendToBackend = async (answersObj, imageBase64 = null) => {
     const res = await fetch("http://127.0.0.1:8000/cases/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         raw_text_input: initialInput.current,
         follow_up_answers: answersObj,
+        ...(imageBase64 ? { image_base64: imageBase64 } : {}),
       }),
     });
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -37,8 +38,8 @@ export default function ChatPage() {
     return false;
   };
 
-  const handleSend = async (text) => {
-    const userMessage = { role: "user", text };
+  const handleSend = async (text, imageBase64 = null) => {
+    const userMessage = { role: "user", text, imageBase64 };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
 
@@ -56,7 +57,7 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const res = await sendToBackend(updatedAnswers);
+      const res = await sendToBackend(updatedAnswers, imageBase64);
 
       // Update the live case profile after every round
       if (res.pet_profile) setPetProfile(res.pet_profile);

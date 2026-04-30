@@ -17,6 +17,52 @@ def normalize_symptoms(symptoms):
 
 
 # ----------------------------------------
+# Ask a targeted question for Agent 2's missing fields
+# ----------------------------------------
+FIELD_LABELS = {
+    "age_years":              "the pet's age (in years)",
+    "weight_kg":              "the pet's weight (in kg)",
+    "species":                "the species (e.g. dog, cat)",
+    "at_least_one_symptom_flag": "at least one specific symptom (e.g. vomiting, lethargy, itching)",
+}
+
+def generate_targeted_followup(missing_fields: list, structured_case: dict) -> str | None:
+    """
+    Ask Agent 1's LLM to produce ONE natural follow-up question targeting
+    the specific fields Agent 2 says are missing.
+    """
+    human_labels = [
+        FIELD_LABELS.get(f, f.replace("_", " ")) for f in missing_fields
+    ]
+    missing_text = ", ".join(human_labels)
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a veterinary intake assistant.\n"
+                "Ask ONE short, friendly question to collect the missing information.\n"
+                "Do NOT list every missing item separately — combine into one natural question.\n"
+                "Return ONLY JSON."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"The diagnostic model cannot run yet because the following information is missing: {missing_text}.\n"
+                f"Current case so far: {structured_case}\n\n"
+                'Return ONLY: { "question": "your question here" }'
+            ),
+        },
+    ]
+
+    result = chat_json(messages)
+    if not isinstance(result, dict):
+        return None
+    return result.get("question")
+
+
+# ----------------------------------------
 # Ask ONLY ONE follow-up question
 # ----------------------------------------
 def generate_followup(structured_case, answered_questions):

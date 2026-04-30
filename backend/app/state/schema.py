@@ -11,6 +11,7 @@ class PetCaseState(TypedDict, total=False):
 
     image_available: bool
     image_path: Optional[str]
+    image_base64: Optional[str]   # raw base64 string decoded from the browser upload
 
     intake_status: str
     follow_up_questions: List[str]

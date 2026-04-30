@@ -8,7 +8,7 @@ and pass it into your agent's `tools=[...]` list below.
 from crewai import Agent, LLM
 
 from app.config import settings
-# from app.tools.intake_tools import EntityExtractorTool       # uncomment when ready
+from app.tools.intake_tools.entity_extractor import EntityExtractorTool
 from app.tools.symptom_tools import SymptomClassifierTool
 from app.tools.image_tools import ImageClassifierTool
 # from app.tools.triage_tools import UrgencyCalculatorTool     # uncomment when ready
@@ -22,7 +22,6 @@ def _ollama_llm() -> LLM:
         base_url=settings.OLLAMA_BASE_URL,
     )
 
-from app.tools.intake_tools.entity_extractor import EntityExtractorTool
 
 def make_intake_agent() -> Agent:
     """
@@ -39,10 +38,8 @@ def make_intake_agent() -> Agent:
             "You ask clear follow-up questions when information is missing and "
             "never assume facts not stated by the owner."
         ),
-        tools=[EntityExtractorTool()],  # ✅ YOUR TOOL CONNECTED
-        llm=f"ollama/{settings.OLLAMA_MODEL}",
-        #tools=[],  # TODO: add EntityExtractorTool() here
-        #llm=_ollama_llm(),
+        tools=[EntityExtractorTool()],
+        llm=_ollama_llm(),
         verbose=True,
     )
 def make_symptom_agent() -> Agent:
