@@ -8,6 +8,8 @@ Crew only runs Agent 2, 3, 4.
 
 from crewai import Task
 
+from app.agents.symptom_agent.prompt import CONSTRAINTS as SYMPTOM_CONSTRAINTS
+
 
 def build_tasks(
     intake_agent,   # NOT USED (kept for compatibility)

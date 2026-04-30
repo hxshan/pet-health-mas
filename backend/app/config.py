@@ -6,10 +6,11 @@ class Settings(BaseSettings):
     # Ollama LLM settings
     OLLAMA_BASE_URL: str = "http://localhost:11434"
       #FAST for Agent 1
-    OLLAMA_MODEL: str = "mistral"
+    #OLLAMA_MODEL: str = "mistral"
 
     #REQUIRED for CrewAI 
     CREW_MODEL: str = "mistral"    
+    OLLAMA_MODEL: str = "llama3.1:latest"
 
     # Confidence thresholds for ML predictions
     SYMPTOM_CONFIDENCE_THRESHOLD: float = 0.55
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
 
     # Gap between top-2 predictions that triggers uncertainty
     UNCERTAINTY_GAP_THRESHOLD: float = 0.10
+
+    # Path to the CNN skin condition model (relative to backend/ working directory)
+    CNN_MODEL_PATH: str = "artifacts/dog_skin_cnn_mobilenet3.keras"
 
     class Config:
         env_file = ".env"
