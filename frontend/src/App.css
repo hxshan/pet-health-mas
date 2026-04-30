@@ -1,3 +1,7 @@
+/* App-level resets — let Tailwind and ChatPage control all layout */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; padding: 0; background: #020617; }
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
