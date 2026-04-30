@@ -1,26 +1,12 @@
-"""
-Pipeline entry point for Pet Health MAS.
+# app/crew/runner.py
 
-Call `run_case(state)` from the API route or any other entry point.
-"""
-import json
-import logging
-from typing import Any, Dict
-
+from app.agents.intake_agent.agent import run as intake_run
 from app.crew.crew_setup import build_crew
+import json
 from app.agents.symptom_agent.logic import run_symptom_assessment
 
-logger = logging.getLogger(__name__)
 
-
-def run_case(state: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Run the full multi-agent pipeline for one pet health case.
-
-    Args:
-        state: A PetCaseState-compatible dict (see app/state/schema.py).
-               Must contain at least `raw_text_input`.
-
+def run_case(state):
     Returns:
         The same state dict enriched with:
           - symptom_assessment
@@ -32,8 +18,15 @@ def run_case(state: Dict[str, Any]) -> Dict[str, Any]:
     image_path = state.get("image_path")
     image_available = bool(state.get("image_available", image_path is not None))
 
-    logger.info("Starting pet health pipeline. case_id=%s", state.get("case_id"))
+    # 1️⃣ Run Agent 1 ONLY
+    state = intake_run(state)
 
+    # 2️⃣ STOP if not enough info
+    if state.get("intake_status") != "complete":
+        return state
+
+    # 3️⃣ THEN run Agent 2/3/4
+    crew = build_crew(image_available=False)
     # ------------------------------------------------------------------
     # Agent 2 — Symptom Assessment (called directly for reliability)
     # The XGBoost model + confidence analysis runs deterministically;
@@ -66,18 +59,15 @@ def run_case(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
     try:
-        crew_result = crew.kickoff(inputs=crew_inputs)
-
-        # CrewAI returns the last task output as a string — try to parse JSON
-        raw_output = str(crew_result)
-        try:
-            parsed = json.loads(raw_output)
-        except json.JSONDecodeError:
-            parsed = {"raw_output": raw_output}
+        result = crew.kickoff(inputs=state)
+        parsed = json.loads(str(result))
 
         state["triage_result"] = parsed
-        state["final_report"]  = parsed.get("final_report", {})
+        state["final_report"] = parsed.get("final_report", {})
 
+    except Exception:
+        state["final_report"] = {
+            "summary": "Pipeline error — veterinary consultation recommended."
     except Exception as exc:
         logger.exception("Crew pipeline failed: %s", exc)
         state["triage_result"] = {"error": str(exc)}

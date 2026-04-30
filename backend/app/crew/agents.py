@@ -22,11 +22,11 @@ def _ollama_llm() -> LLM:
         base_url=settings.OLLAMA_BASE_URL,
     )
 
+from app.tools.intake_tools.entity_extractor import EntityExtractorTool
 
 def make_intake_agent() -> Agent:
     """
     Intake Agent — parses raw text into a structured case.
-    TODO: add tools=[EntityExtractorTool()] once intake_tools is implemented.
     """
     return Agent(
         role="Pet Health Intake Specialist",
@@ -39,12 +39,12 @@ def make_intake_agent() -> Agent:
             "You ask clear follow-up questions when information is missing and "
             "never assume facts not stated by the owner."
         ),
-        tools=[],  # TODO: add EntityExtractorTool() here
-        llm=_ollama_llm(),
+        tools=[EntityExtractorTool()],  # ✅ YOUR TOOL CONNECTED
+        llm=f"ollama/{settings.OLLAMA_MODEL}",
+        #tools=[],  # TODO: add EntityExtractorTool() here
+        #llm=_ollama_llm(),
         verbose=True,
     )
-
-
 def make_symptom_agent() -> Agent:
     """
     Symptom Assessment Agent — classifies symptoms using the local XGBoost model.

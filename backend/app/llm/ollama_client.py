@@ -46,7 +46,7 @@ def chat(
     }
 
     try:
-        response = httpx.post(url, json=payload, timeout=timeout)
+        response = httpx.post(url, json=payload, timeout=120)
         response.raise_for_status()
         data = response.json()
         return data["message"]["content"]
@@ -65,27 +65,20 @@ def chat(
         ) from exc
 
 
-def chat_json(
-    messages: List[Dict[str, str]],
-    model: Optional[str] = None,
-    temperature: float = 0.1,
-    timeout: float = 120.0,
-) -> Dict[str, Any]:
-    """
-    Same as `chat` but parses and returns the response as a JSON dict.
-
-    The prompt should instruct the model to respond ONLY with valid JSON.
-    If parsing fails the raw text is returned under the key "raw_response".
-    """
+def chat_json(messages, model=None, temperature=0.1, timeout=30):
     raw = chat(messages, model=model, temperature=temperature, timeout=timeout)
-    # Strip markdown code fences if the model wraps its JSON
+
     clean = raw.strip()
+
+    # remove markdown
     if clean.startswith("```"):
         lines = clean.splitlines()
-        # Remove first and last fence lines
-        clean = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        clean = "\n".join(lines[1:-1])
+
     try:
         return json.loads(clean)
     except json.JSONDecodeError:
-        logger.warning("Ollama response is not valid JSON. Raw: %s", raw[:200])
-        return {"raw_response": raw}
+        return {
+            "question": None,
+            "raw_response": raw
+        }

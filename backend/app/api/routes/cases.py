@@ -19,11 +19,13 @@ def analyze_case(payload: AnalyzeCaseRequest) -> AnalyzeCaseResponse:
         raw_text_input=payload.raw_text_input,
         image_path=payload.image_path,
     )
+    
+    state["follow_up_answers"] = payload.follow_up_answers or {}
 
     try:
         state = run_case(state)
     except RuntimeError as exc:
-        # Surface Ollama connectivity errors as 503
+        
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     triage = state.get("triage_result", {})
