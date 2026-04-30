@@ -67,21 +67,24 @@ agent = make_symptom_agent()
 
 task = Task(
     description=(
-        "You must use the symptom_classifier tool.\n\n"
-        "After the tool returns a result:\n"
-        "- Return EXACTLY the JSON from the tool\n"
-        "- Do NOT modify any values\n"
-        "- Do NOT remove fields\n"
-        "- Do NOT add explanations\n"
-        "- Do NOT add text before or after\n\n"
-        "Final answer must be pure JSON.\n\n"
+        "You are given a structured pet case. Follow these steps in order:\n\n"
+        "Step 1 — Check completeness.\n"
+        "Required fields: species, sex, neutered, age_years, weight_kg.\n"
+        "A field is invalid if it is missing, 'unknown', or 0.0 for numeric fields.\n\n"
+        "Step 2 — If ANY required field is missing or invalid:\n"
+        "Do NOT call the symptom_classifier tool.\n"
+        "Return this JSON immediately:\n"
+        '{"assessment_status": "needs_more_info", "needs_more_info": true, '
+        '"missing_fields": [<list of missing field names>], '
+        '"uncertainty_flag": true, "uncertainty_reason": "insufficient input data"}\n\n'
+        "Step 3 — If ALL required fields are present and valid:\n"
+        "Call the symptom_classifier tool once and return its output exactly as your Final Answer.\n\n"
+        "Output must be pure JSON. No explanation. No extra text.\n\n"
         f"Case: {json.dumps(CASE)}"
     ),
     expected_output=(
-        "Pure JSON exactly as returned by the symptom_classifier tool. "
-        "Keys: status, top_prediction, confidence, top3, alternatives, "
-        "probability_map, uncertainty_flag, uncertainty_reason, top_gap, possible_out_of_scope. "
-        "No extra text, no explanation, no wrapping."
+        "Pure JSON. Either a needs_more_info object (if required fields are missing) "
+        "or the exact JSON from the symptom_classifier tool. No extra text."
     ),
     agent=agent,
 )

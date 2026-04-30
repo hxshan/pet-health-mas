@@ -100,11 +100,11 @@ class SymptomClassifierTool(BaseTool):
 
     name: str = "symptom_classifier"
     description: str = (
-        "Classify a pet's symptoms using a local XGBoost ML model. "
-        "Pass known profile fields (species, breed, sex, neutered, age_years, weight_kg) "
-        "and any symptom flags that are present as 1 (omit or use 0 for absent). "
-        "All fields are optional — supply as many as you know. "
-        "Returns top_prediction, confidence, uncertainty_flag."
+        "Run the XGBoost symptom classifier on a complete pet case. "
+        "Only call this tool when species, sex, neutered, age_years, and weight_kg are all known. "
+        "Pass all known profile fields and symptom flags. "
+        "Returns: status, top_prediction, confidence, top3, alternatives, "
+        "probability_map, uncertainty_flag, uncertainty_reason, top_gap, possible_out_of_scope."
     )
     args_schema: type[BaseModel] = SymptomInput
 
@@ -112,6 +112,14 @@ class SymptomClassifierTool(BaseTool):
         # Unwrap if CrewAI passes the whole case as {"object": {...}}
         if "object" in kwargs and isinstance(kwargs["object"], dict):
             kwargs = kwargs["object"]
+
+        # Also handle nested {"profile_fields": {...}, "symptoms_flags": {...}}
+        # that some LLMs emit instead of flat kwargs
+        if "profile_fields" in kwargs or "symptoms_flags" in kwargs:
+            merged = {}
+            merged.update(kwargs.get("profile_fields") or {})
+            merged.update(kwargs.get("symptoms_flags") or {})
+            kwargs = merged
 
         # Coerce string "0"/"1" flags → int
         raw = {}
@@ -124,25 +132,29 @@ class SymptomClassifierTool(BaseTool):
             else:
                 raw[k] = v
 
-        # ── Missing-data guard ─────────────────────────────────────────────────
+        # ── Hard missing-data guard (agent cannot bypass this) ─────────────────
         missing = []
         for field in ("species", "sex", "neutered"):
-            if not raw.get(field) or raw.get(field) == "unknown":
+            if not raw.get(field) or str(raw.get(field)).lower() in ("unknown", "none", "null", ""):
                 missing.append(field)
         for field in ("age_years", "weight_kg"):
             val = raw.get(field)
-            if val is None or float(val) == 0.0:
+            try:
+                if val is None or float(val) == 0.0:
+                    missing.append(field)
+            except (TypeError, ValueError):
                 missing.append(field)
 
         if missing:
+            print(f"[symptom_classifier] BLOCKED — missing required fields: {missing}")
             return json.dumps({
-                "assessment_status": "needs_more_info",
-                "needs_more_info":   True,
-                "missing_fields":    missing,
-                "uncertainty_flag":  True,
+                "assessment_status":  "needs_more_info",
+                "needs_more_info":    True,
+                "missing_fields":     missing,
+                "uncertainty_flag":   True,
                 "uncertainty_reason": "insufficient input data",
             })
-        # ── End missing-data guard ─────────────────────────────────────────────
+        # ── End guard ──────────────────────────────────────────────────────────
 
         try:
             result   = predict(raw)
