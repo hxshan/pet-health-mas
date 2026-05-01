@@ -1,31 +1,33 @@
 import { useEffect, useRef } from "react";
-
-const S = {
-  outer:       { flex: 1, overflowY: "auto", minHeight: 0 },
-  inner:       { maxWidth: "640px", margin: "0 auto", padding: "40px 20px 16px", display: "flex", flexDirection: "column", gap: "28px" },
-
-  emptyWrap:   { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center", userSelect: "none" },
-  emptyIcon:   { width: "44px", height: "44px", borderRadius: "10px", background: "#0d1f26", border: "1px solid #00d4ff33", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px", boxShadow: "0 0 16px rgba(0,212,255,0.1)" },
-  emptyIconSvg:{ width: "20px", height: "20px", color: "#00d4ff" },
-  emptyTitle:  { fontSize: "16px", fontWeight: 600, color: "#e8e6e3", margin: "0 0 8px", letterSpacing: "-0.2px" },
-  emptyBody:   { fontSize: "13px", color: "#57534e", maxWidth: "280px", lineHeight: "1.6", margin: 0 },
-  hintsWrap:   { marginTop: "24px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", maxWidth: "400px" },
-  hintItem:    { textAlign: "left", padding: "8px 12px", borderRadius: "6px", border: "1px solid #0e3a47", fontSize: "12px", color: "#57534e", background: "#0a1a1f", cursor: "default", lineHeight: 1.5 },
-
-  userRow:     { display: "flex", justifyContent: "flex-end" },
-  userBubble:  { maxWidth: "72%", background: "#0d1a2e", border: "1px solid #1e3a5f", color: "#e8e6e3", borderRadius: "14px", borderTopRightRadius: "4px", padding: "10px 14px", fontSize: "14px", lineHeight: "1.6" },
-
-  botRow:      { display: "flex", gap: "12px", alignItems: "flex-start" },
-  botAvatar:   { width: "26px", height: "26px", borderRadius: "6px", background: "#0d1f26", border: "1px solid #00d4ff44", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px", boxShadow: "0 0 8px rgba(0,212,255,0.12)" },
-  botAvatarSvg:{ width: "13px", height: "13px", color: "#00d4ff" },
-  botText:     { fontSize: "14px", color: "#c4c0bb", lineHeight: "1.7", paddingTop: "2px", flex: 1 },
-
-  dotsRow:     { display: "flex", alignItems: "center", gap: "4px", paddingTop: "6px" },
-  dot:         { width: "5px", height: "5px", borderRadius: "50%", background: "#00d4ff", boxShadow: "0 0 4px #00d4ff" },
-};
+import { useTheme } from "../context/ThemeContext";
 
 export default function ChatWindow({ messages }) {
+  const { c } = useTheme();
   const bottomRef = useRef(null);
+
+  const S = {
+    outer:       { flex: 1, overflowY: "auto", minHeight: 0, background: c.pageBg },
+    inner:       { maxWidth: "640px", margin: "0 auto", padding: "40px 20px 16px", display: "flex", flexDirection: "column", gap: "28px" },
+
+    emptyWrap:   { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center", userSelect: "none" },
+    emptyIcon:   { width: "44px", height: "44px", borderRadius: "10px", background: c.emptyIconBg, border: `1px solid ${c.emptyIconBorder}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px", boxShadow: c.emptyIconShadow },
+    emptyIconSvg:{ width: "20px", height: "20px", color: c.emptyIconColor },
+    emptyTitle:  { fontSize: "16px", fontWeight: 600, color: c.emptyTitle, margin: "0 0 8px", letterSpacing: "-0.2px" },
+    emptyBody:   { fontSize: "13px", color: c.emptyBody, maxWidth: "280px", lineHeight: "1.6", margin: 0 },
+    hintsWrap:   { marginTop: "24px", display: "flex", flexDirection: "column", gap: "6px", width: "100%", maxWidth: "400px" },
+    hintItem:    { textAlign: "left", padding: "8px 12px", borderRadius: "6px", border: `1px solid ${c.hintBorder}`, fontSize: "12px", color: c.hintText, background: c.hintBg, cursor: "default", lineHeight: 1.5 },
+
+    userRow:     { display: "flex", justifyContent: "flex-end" },
+    userBubble:  { maxWidth: "72%", background: c.userBubbleBg, border: `1px solid ${c.userBubbleBorder}`, color: c.userBubbleText, borderRadius: "14px", borderTopRightRadius: "4px", padding: "10px 14px", fontSize: "14px", lineHeight: "1.6" },
+
+    botRow:      { display: "flex", gap: "12px", alignItems: "flex-start" },
+    botAvatar:   { width: "26px", height: "26px", borderRadius: "6px", background: c.botAvatarBg, border: `1px solid ${c.botAvatarBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px", boxShadow: c.botAvatarShadow },
+    botAvatarSvg:{ width: "13px", height: "13px", color: c.botAvatarIcon },
+    botText:     { fontSize: "14px", color: c.botText, lineHeight: "1.7", paddingTop: "2px", flex: 1 },
+
+    dotsRow:     { display: "flex", alignItems: "center", gap: "4px", paddingTop: "6px" },
+    dot:         { width: "5px", height: "5px", borderRadius: "50%", background: c.dotColor, boxShadow: c.dotShadow },
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,7 +71,7 @@ export default function ChatWindow({ messages }) {
                     <img
                       src={msg.imageBase64}
                       alt="attached"
-                      style={{ display: "block", maxWidth: "200px", maxHeight: "160px", objectFit: "cover", borderRadius: "8px", marginBottom: msg.text ? "8px" : 0, border: "1px solid #1e3a5f" }}
+                      style={{ display: "block", maxWidth: "200px", maxHeight: "160px", objectFit: "cover", borderRadius: "8px", marginBottom: msg.text ? "8px" : 0, border: `1px solid ${c.userBubbleBorder}` }}
                     />
                   )}
                   {msg.text && <span>{msg.text}</span>}

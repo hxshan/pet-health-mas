@@ -2,25 +2,32 @@ import { useState, useRef } from "react";
 import ChatWindow from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
 import CaseProfilePanel from "../components/CaseProfilePanel";
+import { useTheme } from "../context/ThemeContext";
 
 export default function ChatPage() {
+  const { c, toggleTheme } = useTheme();
   const [messages, setMessages] = useState([]);
   const [answers, setAnswers] = useState({});
   const [lastQuestion, setLastQuestion] = useState(null);
   const [loading, setLoading] = useState(false);
   const [petProfile, setPetProfile] = useState({});
   const [extractedSymptoms, setExtractedSymptoms] = useState([]);
+  const [imageAssessment, setImageAssessment] = useState(null);
   const askedQuestions = useRef(new Set());
   const initialInput = useRef("");
+  const persistedImage = useRef(null);   // keep the image for every follow-up round
 
   const sendToBackend = async (answersObj, imageBase64 = null) => {
+    // Use the freshly supplied image, or fall back to the one stored from a
+    // previous turn so the image agent always gets the file.
+    const imageToSend = imageBase64 ?? persistedImage.current ?? null;
     const res = await fetch("http://127.0.0.1:8000/cases/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         raw_text_input: initialInput.current,
         follow_up_answers: answersObj,
-        ...(imageBase64 ? { image_base64: imageBase64 } : {}),
+        ...(imageToSend ? { image_base64: imageToSend } : {}),
       }),
     });
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -47,6 +54,11 @@ export default function ChatPage() {
       initialInput.current = text;
     }
 
+    // Persist image so every subsequent backend call includes it
+    if (imageBase64) {
+      persistedImage.current = imageBase64;
+    }
+
     let updatedAnswers = { ...answers };
     if (lastQuestion) {
       updatedAnswers[lastQuestion] = text;
@@ -62,6 +74,9 @@ export default function ChatPage() {
       // Update the live case profile after every round
       if (res.pet_profile) setPetProfile(res.pet_profile);
       if (res.extracted_symptoms?.length) setExtractedSymptoms(res.extracted_symptoms);
+      if (res.image_assessment && Object.keys(res.image_assessment).length > 0) {
+        setImageAssessment(res.image_assessment);
+      }
 
       const freshQuestions = (res.follow_up_questions || []).filter(
         (q) => !isSimilarToAsked(q)
@@ -71,25 +86,27 @@ export default function ChatPage() {
         const summary = res.final_report?.summary || res.recommendation || "Analysis complete. Please consult a vet.";
         const urgency = res.urgency_level || "unknown";
         const symptom = res.symptom_assessment;
+        const image   = res.image_assessment;
 
         const botMessages = [
-          { role: "bot", text: `✅ ${summary}` },
-          { role: "bot", text: `🚨 Urgency: ${urgency}` },
+          { role: "bot", text: `Summary: ${summary}` },
+          { role: "bot", text: `Urgency: ${urgency}` },
         ];
 
+        // ── Agent 2: Symptom Assessment ──────────────────────────────────
         if (symptom?.assessment_status === "completed" && symptom.top_prediction) {
           const conf = symptom.confidence != null
             ? ` — ${Math.round(symptom.confidence * 100)}% confidence`
             : "";
           botMessages.push({
             role: "bot",
-            text: `🔬 Agent 2 diagnosis: ${symptom.top_prediction}${conf}`,
+            text: `[Agent 2] Symptom assessment: ${symptom.top_prediction}${conf}`,
           });
 
           if (symptom.local_interpretation) {
             botMessages.push({
               role: "bot",
-              text: `📝 ${symptom.local_interpretation}`,
+              text: symptom.local_interpretation,
             });
           }
 
@@ -99,26 +116,80 @@ export default function ChatPage() {
               .join(", ");
             botMessages.push({
               role: "bot",
-              text: `🔁 Other possibilities: ${alts}`,
+              text: `Other possibilities: ${alts}`,
             });
           }
 
           if (symptom.uncertainty_flag) {
             botMessages.push({
               role: "bot",
-              text: `⚠️ Uncertain: ${symptom.uncertainty_reason}`,
+              text: `Note: ${symptom.uncertainty_reason}`,
             });
           }
         } else if (symptom?.assessment_status === "needs_more_info") {
           botMessages.push({
             role: "bot",
-            text: `⚠️ Agent 2 could not assess — missing: ${(symptom.missing_fields || []).join(", ")}`,
+            text: `[Agent 2] Could not assess — missing: ${(symptom.missing_fields || []).join(", ")}`,
           });
         } else if (symptom?.assessment_status === "error") {
           botMessages.push({
             role: "bot",
-            text: `❌ Agent 2 error: ${symptom.error || "unknown error"}`,
+            text: `[Agent 2] Error: ${symptom.error || "unknown error"}`,
           });
+        }
+
+        // ── Agent 3: Image Assessment ─────────────────────────────────────
+        if (image && Object.keys(image).length > 0) {
+          if (image.image_validity === "unusable") {
+            botMessages.push({
+              role: "bot",
+              text: `[Agent 3] Image could not be assessed: ${image.local_interpretation || "unusable image"}`,
+            });
+          } else if (image.image_prediction && image.image_prediction !== "unknown") {
+            const imgConf = image.confidence != null
+              ? ` — ${Math.round(image.confidence * 100)}% confidence`
+              : "";
+            botMessages.push({
+              role: "bot",
+              text: `[Agent 3] Image assessment: ${image.image_prediction}${imgConf}`,
+            });
+
+            if (image.local_interpretation) {
+              botMessages.push({
+                role: "bot",
+                text: image.local_interpretation,
+              });
+            }
+
+            if (image.alternatives?.length) {
+              const imgAlts = image.alternatives
+                .map(a => `${a.condition} (${Math.round((a.confidence ?? 0) * 100)}%)`)
+                .join(", ");
+              botMessages.push({
+                role: "bot",
+                text: `Image — other possibilities: ${imgAlts}`,
+              });
+            }
+
+            if (image.uncertainty_flag) {
+              botMessages.push({
+                role: "bot",
+                text: `Note: Image result has low confidence — veterinary review recommended.`,
+              });
+            }
+
+            if (image.possible_out_of_scope) {
+              botMessages.push({
+                role: "bot",
+                text: `Note: Image may be outside supported scope. Results may not apply.`,
+              });
+            }
+          } else if (image.error) {
+            botMessages.push({
+              role: "bot",
+              text: `[Agent 3] Image agent error: ${image.error}`,
+            });
+          }
         }
 
         setMessages([...updatedMessages, ...botMessages]);
@@ -138,31 +209,32 @@ export default function ChatPage() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#161614", color: "#e8e6e3", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: c.pageBg, color: c.text, fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* ── Left nav sidebar ── */}
-      <div style={{ width: "216px", flexShrink: 0, background: "#0f0f0e", borderRight: "1px solid #252422", display: "flex", flexDirection: "column", padding: "20px 12px" }}>
+      <div style={{ width: "216px", flexShrink: 0, background: c.sidebarBg, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", padding: "20px 12px" }}>
         {/* Logo */}
         <div style={{ padding: "0 8px", marginBottom: "28px" }}>
-          <p style={{ fontSize: "14px", fontWeight: 700, color: "#00d4ff", lineHeight: 1, margin: 0, letterSpacing: "-0.2px", textShadow: "0 0 12px rgba(0,212,255,0.5)" }}>PetHealth AI</p>
-          <p style={{ fontSize: "11px", color: "#0e7490", margin: "4px 0 0", letterSpacing: "0.06em", textTransform: "uppercase" }}>Diagnostic System</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, color: c.logoColor, lineHeight: 1, margin: 0, letterSpacing: "-0.2px", textShadow: c.logoShadow }}>PetHealth AI</p>
+          <p style={{ fontSize: "11px", color: c.logoSub, margin: "4px 0 0", letterSpacing: "0.06em", textTransform: "uppercase" }}>Diagnostic System</p>
         </div>
 
         {/* Session item */}
         <div style={{ padding: "0 4px" }}>
-          <p style={{ fontSize: "10px", fontWeight: 600, color: "#44403c", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", paddingLeft: "4px" }}>Session</p>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "#1e1c1a", border: "1px solid #0e3a47" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00d4ff", flexShrink: 0, boxShadow: "0 0 6px #00d4ff" }} />
-            <span style={{ fontSize: "12px", color: "#c4c0bb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>New consultation</span>
+          <p style={{ fontSize: "10px", fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", paddingLeft: "4px" }}>Session</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: c.sessionBg, border: `1px solid ${c.sessionBorder}` }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.sessionDot, flexShrink: 0, boxShadow: c.sessionDotGlow }} />
+            <span style={{ fontSize: "12px", color: c.sessionText, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>New consultation</span>
           </div>
         </div>
 
         {/* Footer */}
         <div style={{ marginTop: "auto", padding: "0 8px" }}>
-          <p style={{ fontSize: "10px", color: "#2a3a3f", margin: 0, lineHeight: "2" }}>
-            <span style={{ color: "#00d4ff", opacity: 0.7 }}>Agent 1</span> — Intake<br />
-            <span style={{ color: "#e879f9", opacity: 0.7 }}>Agent 2</span> — Symptoms<br />
-            <span style={{ color: "#00d4ff", opacity: 0.7 }}>Agent 3</span> — Triage
+          <p style={{ fontSize: "10px", color: c.agentFooter, margin: 0, lineHeight: "2" }}>
+            <span style={{ color: c.cyan, opacity: 0.7 }}>Agent 1</span> — Intake<br />
+            <span style={{ color: c.pink, opacity: 0.7 }}>Agent 2</span> — Symptoms<br />
+            <span style={{ color: c.cyan, opacity: 0.7 }}>Agent 3</span> — Images<br />
+            <span style={{ color: c.pink, opacity: 0.7 }}>Agent 4</span> — Triage
           </p>
         </div>
       </div>
@@ -171,11 +243,37 @@ export default function ChatPage() {
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
 
         {/* Top bar */}
-        <div style={{ flexShrink: 0, height: "48px", borderBottom: "1px solid #252422", display: "flex", alignItems: "center", padding: "0 24px" }}>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "#c4c0bb", letterSpacing: "-0.1px" }}>Pet Health Consultation</span>
+        <div style={{ flexShrink: 0, height: "48px", borderBottom: `1px solid ${c.border}`, display: "flex", alignItems: "center", padding: "0 24px" }}>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: c.textMuted, letterSpacing: "-0.1px" }}>Pet Health Consultation</span>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00d4ff", boxShadow: "0 0 8px #00d4ff" }} />
-            <span style={{ fontSize: "11px", color: "#00d4ff", fontWeight: 500 }}>Live</span>
+            {/* Live indicator */}
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.liveColor, boxShadow: c.liveDotGlow }} />
+            <span style={{ fontSize: "11px", color: c.liveColor, fontWeight: 500, marginRight: "12px" }}>Live</span>
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              title={c.isDark ? "Switch to light mode" : "Switch to dark mode"}
+              style={{
+                width: "28px", height: "28px", borderRadius: "7px",
+                border: `1px solid ${c.toggleBorder}`,
+                background: c.toggleBg, color: c.toggleColor,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", transition: "background 0.2s, border-color 0.2s",
+              }}
+            >
+              {c.isDark ? (
+                /* Sun icon */
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="4" />
+                  <path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+              ) : (
+                /* Moon icon */
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
 
@@ -184,10 +282,10 @@ export default function ChatPage() {
           <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
             <ChatWindow messages={messages} />
             {/* Input bar */}
-            <div style={{ flexShrink: 0, padding: "12px 20px 18px", borderTop: "1px solid #252422", background: "#161614" }}>
+            <div style={{ flexShrink: 0, padding: "12px 20px 18px", borderTop: `1px solid ${c.border}`, background: c.inputAreaBg }}>
               <div style={{ maxWidth: "640px", margin: "0 auto" }}>
                 <ChatInput onSend={handleSend} disabled={loading} />
-                <p style={{ textAlign: "center", fontSize: "10px", color: "#3a3632", marginTop: "8px", lineHeight: 1.5 }}>
+                <p style={{ textAlign: "center", fontSize: "10px", color: c.disclaimer, marginTop: "8px", lineHeight: 1.5 }}>
                   Always consult a qualified veterinarian. This tool does not replace professional advice.
                 </p>
               </div>
@@ -195,8 +293,8 @@ export default function ChatPage() {
           </div>
 
           {/* ── Case Profile panel ── */}
-          <div style={{ width: "260px", flexShrink: 0, borderLeft: "1px solid #252422", background: "#0f0f0e", overflowY: "auto" }}>
-            <CaseProfilePanel profile={petProfile} symptoms={extractedSymptoms} />
+          <div style={{ width: "260px", flexShrink: 0, borderLeft: `1px solid ${c.border}`, background: c.panelBg, overflowY: "auto" }}>
+            <CaseProfilePanel profile={petProfile} symptoms={extractedSymptoms} imageAssessment={imageAssessment} />
           </div>
         </div>
       </div>

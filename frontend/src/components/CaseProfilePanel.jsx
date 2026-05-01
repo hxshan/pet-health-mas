@@ -1,45 +1,60 @@
-const S = {
-  root: { display: "flex", flexDirection: "column", height: "100%" },
-  header: { flexShrink: 0, height: "48px", display: "flex", alignItems: "center", padding: "0 16px", borderBottom: "1px solid #292524" },
-  headerLabel: { fontSize: "10px", fontWeight: 600, color: "#78716c", textTransform: "uppercase", letterSpacing: "0.1em" },
-  badge: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "#00d4ff", fontWeight: 500 },
-  dot: { width: "6px", height: "6px", borderRadius: "50%", background: "#00d4ff", boxShadow: "0 0 6px #00d4ff" },
-  body: { flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "16px" },
-  sectionLabel: { fontSize: "10px", fontWeight: 600, color: "#e879f9", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px", opacity: 0.7 },
-  fieldRow: (known) => ({
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "6px 10px", borderRadius: "8px",
-    background: known ? "rgba(0,212,255,0.04)" : "transparent",
-    borderLeft: known ? "2px solid rgba(0,212,255,0.25)" : "2px solid transparent",
-  }),
-  fieldKey: { fontSize: "12px", color: "#57534e" },
-  fieldVal: (known) => ({ fontSize: "12px", fontWeight: 500, color: known ? "#00d4ff" : "#44403c" }),
-  divider: { borderTop: "1px solid #292524" },
-  tag: {
-    display: "inline-block", background: "rgba(232,121,249,0.08)", color: "#e879f9",
-    border: "1px solid rgba(232,121,249,0.25)", fontSize: "11px", fontWeight: 500,
-    padding: "3px 10px", borderRadius: "999px", boxShadow: "0 0 6px rgba(232,121,249,0.1)",
-  },
-  tagsWrap: { display: "flex", flexWrap: "wrap", gap: "6px" },
-  emptyBox: {
-    border: "1px dashed #292524", borderRadius: "12px",
-    padding: "24px 16px", textAlign: "center",
-  },
-  emptyText: { fontSize: "12px", color: "#44403c", lineHeight: "1.6" },
-};
+import { useTheme } from "../context/ThemeContext";
 
-const FIELDS = [
-  { label: "Species", key: "species" },
-  { label: "Breed",   key: "breed"   },
-  { label: "Age",     key: "age"     },
-  { label: "Sex",     key: "sex"     },
-  { label: "Weight",  key: "weight"  },
-];
+export default function CaseProfilePanel({ profile, symptoms, imageAssessment }) {
+  const { c } = useTheme();
 
-export default function CaseProfilePanel({ profile, symptoms }) {
+  const S = {
+    root: { display: "flex", flexDirection: "column", height: "100%" },
+    header: { flexShrink: 0, height: "48px", display: "flex", alignItems: "center", padding: "0 16px", borderBottom: `1px solid ${c.panelDivider}` },
+    headerLabel: { fontSize: "10px", fontWeight: 600, color: c.panelHeaderColor, textTransform: "uppercase", letterSpacing: "0.1em" },
+    badge: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", color: c.cyan, fontWeight: 500 },
+    dot: { width: "6px", height: "6px", borderRadius: "50%", background: c.cyan, boxShadow: c.isDark ? `0 0 6px ${c.cyan}` : "none" },
+    body: { flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "16px", background: c.panelBg },
+    sectionLabel: { fontSize: "10px", fontWeight: 600, color: c.sectionLabelColor, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px", opacity: 0.7 },
+    fieldRow: (known) => ({
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "6px 10px", borderRadius: "8px",
+      background: known ? c.fieldBg : "transparent",
+      borderLeft: known ? `2px solid ${c.fieldBorderLeft}` : "2px solid transparent",
+    }),
+    fieldKey: { fontSize: "12px", color: c.fieldKey },
+    fieldVal: (known) => ({ fontSize: "12px", fontWeight: 500, color: known ? c.fieldVal : c.textMuted }),
+    divider: { borderTop: `1px solid ${c.panelDivider}` },
+    tag: {
+      display: "inline-block", background: c.tagBg, color: c.tagColor,
+      border: `1px solid ${c.tagBorder}`, fontSize: "11px", fontWeight: 500,
+      padding: "3px 10px", borderRadius: "999px", boxShadow: c.tagShadow,
+    },
+    tagsWrap: { display: "flex", flexWrap: "wrap", gap: "6px" },
+    imgTag: {
+      display: "inline-block", background: c.imgTagBg, color: c.imgTagColor,
+      border: `1px solid ${c.imgTagBorder}`, fontSize: "11px", fontWeight: 500,
+      padding: "3px 10px", borderRadius: "999px", boxShadow: c.imgTagShadow,
+    },
+    imgConfBar: (pct) => ({
+      height: "4px", borderRadius: "2px",
+      background: `linear-gradient(to right, ${c.imgBarFg} ${pct}%, ${c.imgBarBg} ${pct}%)`,
+      marginTop: "4px",
+    }),
+    emptyBox: {
+      border: `1px dashed ${c.emptyBoxBorder}`, borderRadius: "12px",
+      padding: "24px 16px", textAlign: "center",
+    },
+    emptyText: { fontSize: "12px", color: c.emptyBoxText, lineHeight: "1.6" },
+  };
+
+  const FIELDS = [
+    { label: "Species", key: "species" },
+    { label: "Breed",   key: "breed"   },
+    { label: "Age",     key: "age"     },
+    { label: "Sex",     key: "sex"     },
+    { label: "Weight",  key: "weight"  },
+  ];
+
   const hasAnyProfile = profile && Object.values(profile).some(v => v && v !== "unknown");
-  const hasSymptoms = symptoms && symptoms.length > 0;
-  const isActive = hasAnyProfile || hasSymptoms;
+  const hasSymptoms   = symptoms && symptoms.length > 0;
+  const hasImage      = imageAssessment && imageAssessment.image_prediction && imageAssessment.image_prediction !== "unknown";
+  const isActive      = hasAnyProfile || hasSymptoms || hasImage;
 
   return (
     <div style={S.root}>
@@ -81,7 +96,63 @@ export default function CaseProfilePanel({ profile, symptoms }) {
               ))}
             </div>
           ) : (
-            <p style={{ fontSize: "12px", color: "#44403c", fontStyle: "italic" }}>None detected yet</p>
+            <p style={{ fontSize: "12px", color: c.textMuted, fontStyle: "italic" }}>None detected yet</p>
+          )}
+        </div>
+
+        <div style={S.divider} />
+
+        {/* Image Assessment (Agent 3) */}
+        <div>
+          <p style={S.sectionLabel}>Image Assessment</p>
+          {hasImage ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={S.fieldRow(true)}>
+                <span style={S.fieldKey}>Prediction</span>
+                <span style={{ ...S.fieldVal(true), fontSize: "11px" }}>
+                  {imageAssessment.image_prediction}
+                </span>
+              </div>
+              {imageAssessment.confidence != null && (
+                <div style={{ padding: "0 10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                    <span style={{ fontSize: "10px", color: c.fieldKey }}>Confidence</span>
+                    <span style={{ fontSize: "10px", color: c.imgTagColor }}>
+                      {Math.round(imageAssessment.confidence * 100)}%
+                    </span>
+                  </div>
+                  <div style={S.imgConfBar(Math.round(imageAssessment.confidence * 100))} />
+                </div>
+              )}
+              {imageAssessment.uncertainty_flag && (
+                <span style={{ fontSize: "10px", color: "#f59e0b", padding: "0 10px" }}>
+                  Low confidence result
+                </span>
+              )}
+              {imageAssessment.image_validity === "unusable" && (
+                <span style={{ fontSize: "10px", color: "#f87171", padding: "0 10px" }}>
+                  Image unusable
+                </span>
+              )}
+              {imageAssessment.alternatives?.length > 0 && (
+                <div style={{ padding: "0 10px" }}>
+                  <p style={{ fontSize: "10px", color: c.fieldKey, marginBottom: "4px" }}>Alternatives</p>
+                  <div style={S.tagsWrap}>
+                    {imageAssessment.alternatives.map((a, i) => (
+                      <span key={i} style={S.imgTag}>
+                        {a.condition} {Math.round((a.confidence ?? 0) * 100)}%
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p style={{ fontSize: "12px", color: c.textMuted, fontStyle: "italic" }}>
+              {imageAssessment?.image_validity === "unusable"
+                ? "Image could not be assessed"
+                : "No image submitted"}
+            </p>
           )}
         </div>
 
