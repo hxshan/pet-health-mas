@@ -127,10 +127,11 @@ def run(state):
     answers = state.get("follow_up_answers", {})
 
     # ----------------------------------------
-    # Merge conversation (LIMIT context)
+    # Merge conversation (include all Q&A pairs so profile fields
+    # gathered in earlier rounds are not lost)
     # ----------------------------------------
     merged_input = raw_input
-    for q, a in list(answers.items())[-2:]:
+    for q, a in list(answers.items()):
         merged_input += f"\n{q}: {a}"
 
     # ----------------------------------------

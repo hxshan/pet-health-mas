@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
+import { useTheme } from "../context/ThemeContext";
 
 export default function ChatInput({ onSend, disabled }) {
+  const { c } = useTheme();
   const [input, setInput]       = useState("");
   const [focused, setFocused]   = useState(false);
   const [imageFile, setImageFile] = useState(null);   // { name, dataUrl }
@@ -31,12 +33,12 @@ export default function ChatInput({ onSend, disabled }) {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
-    background: "#0f1923",
-    border: `1px solid ${focused ? "#00d4ff55" : "#1e2a35"}`,
+    background: c.inputBg,
+    border: `1px solid ${focused ? c.inputBorderFocus : c.inputBorderRest}`,
     borderRadius: "12px",
     padding: "10px 10px 10px 14px",
     transition: "border-color 0.15s, box-shadow 0.15s",
-    boxShadow: focused ? "0 0 0 3px rgba(0,212,255,0.08), 0 0 12px rgba(0,212,255,0.06)" : "none",
+    boxShadow: focused ? c.inputShadowFocus : "none",
   };
 
   const rowStyle = { display: "flex", alignItems: "flex-end", gap: "10px" };
@@ -46,7 +48,7 @@ export default function ChatInput({ onSend, disabled }) {
     background: "transparent",
     border: "none",
     outline: "none",
-    color: "#e8e6e3",
+    color: c.inputText,
     fontSize: "14px",
     lineHeight: "1.6",
     resize: "vertical",
@@ -61,13 +63,13 @@ export default function ChatInput({ onSend, disabled }) {
     width: "32px",
     height: "32px",
     borderRadius: "8px",
-    border: active ? "1px solid #00d4ff88" : "1px solid #2a4a5e",
+    border: active ? `1px solid ${c.camActiveBorder}` : `1px solid ${c.camBorder}`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    background: active ? "rgba(0,212,255,0.15)" : "rgba(0,212,255,0.05)",
-    color: active ? "#00d4ff" : "#4a8fa8",
+    background: active ? c.camActiveBg : c.camBg,
+    color: active ? c.camActiveColor : c.camColor,
     transition: "background 0.15s, color 0.15s, border-color 0.15s",
     marginBottom: "1px",
   });
@@ -77,15 +79,15 @@ export default function ChatInput({ onSend, disabled }) {
     width: "32px",
     height: "32px",
     borderRadius: "8px",
-    border: canSend ? "1px solid #00d4ff55" : "1px solid #1e2a35",
+    border: canSend ? `1px solid ${c.sendActiveBorder}` : `1px solid ${c.sendInactiveBorder}`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: canSend ? "pointer" : "not-allowed",
-    background: canSend ? "rgba(0,212,255,0.12)" : "#111920",
-    color: canSend ? "#00d4ff" : "#1e3040",
+    background: canSend ? c.sendActiveBg : c.sendInactiveBg,
+    color: canSend ? c.sendActiveColor : c.sendInactiveColor,
     transition: "background 0.15s, color 0.15s, box-shadow 0.15s",
-    boxShadow: canSend ? "0 0 8px rgba(0,212,255,0.2)" : "none",
+    boxShadow: canSend ? c.sendActiveShadow : "none",
     marginBottom: "1px",
   };
 
@@ -95,19 +97,19 @@ export default function ChatInput({ onSend, disabled }) {
       {imageFile && (
         <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingBottom: "2px" }}>
           <div style={{ position: "relative", display: "inline-flex" }}>
-            <img
+              <img
               src={imageFile.dataUrl}
               alt="attached"
-              style={{ height: "48px", width: "48px", objectFit: "cover", borderRadius: "6px", border: "1px solid #00d4ff33" }}
+              style={{ height: "48px", width: "48px", objectFit: "cover", borderRadius: "6px", border: `1px solid ${c.camActiveBorder}` }}
             />
             <button
               onClick={clearImage}
-              style={{ position: "absolute", top: "-6px", right: "-6px", width: "16px", height: "16px", borderRadius: "50%", background: "#1a1917", border: "1px solid #44403c", color: "#78716c", fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", lineHeight: 1 }}
+              style={{ position: "absolute", top: "-6px", right: "-6px", width: "16px", height: "16px", borderRadius: "50%", background: c.clearBg, border: `1px solid ${c.clearBorder}`, color: c.clearColor, fontSize: "10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", lineHeight: 1 }}
             >
               ✕
             </button>
           </div>
-          <span style={{ fontSize: "11px", color: "#44403c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>
+          <span style={{ fontSize: "11px", color: c.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>
             {imageFile.name}
           </span>
         </div>
