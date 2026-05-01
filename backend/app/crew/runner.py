@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.agents.intake_agent.agent import run as intake_run, generate_targeted_followup
 from app.agents.symptom_agent.logic import run_symptom_assessment
 from app.agents.image_agent.agent import run as image_agent_run
+from app.agents.triage_agent.agent import run as triage_run
 
 logger = logging.getLogger(__name__)
 
@@ -259,10 +260,13 @@ def run_case(state: dict) -> dict:
         return state
 
     # ── Step 4: Triage skipped — return Agent 2 + Agent 3 results directly ───
-    state["triage_result"] = {}
-    state["final_report"]  = {
-        "summary":    "Assessment complete. Please consult a veterinarian.",
-        "disclaimer": "Always consult a qualified veterinarian.",
-    }
+    state = triage_run(state)
+    logger.info(
+        "Triage complete: urgency=%s uncertainty=%s",
+        state.get("triage_result", {}).get("urgency_level"),
+        state.get("triage_result", {}).get("uncertainty_status"),
+    )
+
+    return state
 
     return state
