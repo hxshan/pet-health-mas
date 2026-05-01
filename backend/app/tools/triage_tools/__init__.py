@@ -61,18 +61,33 @@ def _determine_urgency(
     img_pred: str,
     img_conf: float,
 ) -> str:
-    for pred in (sym_pred, img_pred if has_image else ""):
+    # --- Tier 1: check both predictions for urgent/vet-soon conditions ---
+    preds_to_check = [sym_pred] + ([img_pred] if has_image and img_pred else [])
+    for pred in preds_to_check:
         if pred in _URGENT_CONDITIONS:
             return "urgent"
-    for pred in (sym_pred, img_pred if has_image else ""):
+    for pred in preds_to_check:
         if pred in _VET_SOON_CONDITIONS:
             return "vet_soon"
+
+    # --- Tier 2: conflicting signals always warrant a vet visit soon ---
     if agreement == "conflict" or uncertainty == "out_of_scope":
         return "vet_soon"
-    if sym_conf >= _CONFIDENCE_THRESHOLDS["high"] and uncertainty == "confident":
-        return "monitor"
+
+    # --- Tier 3: benign condition, high confidence → non-urgent ---
+    # Only when uncertainty is fully resolved and both models agree (or no image)
+    if (
+        sym_conf >= _CONFIDENCE_THRESHOLDS["high"]
+        and uncertainty == "confident"
+        and agreement in ("agree", "symptom_only")
+    ):
+        return "non-urgent"
+
+    # --- Tier 4: medium confidence, some signal present → monitor ---
     if sym_conf >= _CONFIDENCE_THRESHOLDS["medium"]:
         return "monitor"
+
+    # --- Tier 5: low confidence, uncertain → still monitor (safe default) ---
     return "monitor"
 
 
@@ -94,6 +109,9 @@ def _build_recommendation(urgency_level: str, uncertainty_status: str,
                     "Monitor your pet closely and consult a veterinarian if symptoms worsen.")
         return (f"Signs may be consistent with {display}. "
                 "Monitor your pet and consult a veterinarian if symptoms persist or worsen.")
+    if urgency_level == "non-urgent":
+        return (f"No immediate concern detected. Signs are consistent with {display}, "
+                "which appears mild. Schedule a routine check-up with your veterinarian.")
     return ("No immediate concern detected. "
             "Continue monitoring your pet and consult a veterinarian for routine care.")
 

@@ -73,5 +73,6 @@ def analyze_case(payload: AnalyzeCaseRequest) -> AnalyzeCaseResponse:
         image_assessment=state.get("image_assessment", {}),
         pet_profile=state.get("pet_profile", {}),
         extracted_symptoms=state.get("extracted_symptoms", []),
+        triage_result=triage,
     )
 
