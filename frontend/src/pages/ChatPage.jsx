@@ -13,6 +13,7 @@ export default function ChatPage() {
   const [petProfile, setPetProfile] = useState({});
   const [extractedSymptoms, setExtractedSymptoms] = useState([]);
   const [imageAssessment, setImageAssessment] = useState(null);
+  const [triageResult, setTriageResult] = useState(null);
   const askedQuestions = useRef(new Set());
   const initialInput = useRef("");
   const persistedImage = useRef(null);   // keep the image for every follow-up round
@@ -77,120 +78,30 @@ export default function ChatPage() {
       if (res.image_assessment && Object.keys(res.image_assessment).length > 0) {
         setImageAssessment(res.image_assessment);
       }
+      if (res.triage_result && Object.keys(res.triage_result).length > 0) {
+        setTriageResult(res.triage_result);
+      }
 
       const freshQuestions = (res.follow_up_questions || []).filter(
         (q) => !isSimilarToAsked(q)
       );
 
       if (!freshQuestions.length) {
-        const summary = res.final_report?.summary || res.recommendation || "Analysis complete. Please consult a vet.";
-        const urgency = res.urgency_level || "unknown";
-        const symptom = res.symptom_assessment;
-        const image   = res.image_assessment;
+        const triage = res.triage_result || {};
+        const fr     = res.final_report  || {};
 
         const botMessages = [
-          { role: "bot", text: `Summary: ${summary}` },
-          { role: "bot", text: `Urgency: ${urgency}` },
+          {
+            role: "bot",
+            type: "final_report",
+            data: {
+              finalReport:       fr,
+              triageResult:      triage,
+              symptomAssessment: res.symptom_assessment || {},
+              imageAssessment:   res.image_assessment   || {},
+            },
+          },
         ];
-
-        // ── Agent 2: Symptom Assessment ──────────────────────────────────
-        if (symptom?.assessment_status === "completed" && symptom.top_prediction) {
-          const conf = symptom.confidence != null
-            ? ` — ${Math.round(symptom.confidence * 100)}% confidence`
-            : "";
-          botMessages.push({
-            role: "bot",
-            text: `[Agent 2] Symptom assessment: ${symptom.top_prediction}${conf}`,
-          });
-
-          if (symptom.local_interpretation) {
-            botMessages.push({
-              role: "bot",
-              text: symptom.local_interpretation,
-            });
-          }
-
-          if (symptom.alternatives?.length) {
-            const alts = symptom.alternatives
-              .map(a => `${a.condition} (${Math.round((a.confidence ?? a.probability ?? 0) * 100)}%)`)
-              .join(", ");
-            botMessages.push({
-              role: "bot",
-              text: `Other possibilities: ${alts}`,
-            });
-          }
-
-          if (symptom.uncertainty_flag) {
-            botMessages.push({
-              role: "bot",
-              text: `Note: ${symptom.uncertainty_reason}`,
-            });
-          }
-        } else if (symptom?.assessment_status === "needs_more_info") {
-          botMessages.push({
-            role: "bot",
-            text: `[Agent 2] Could not assess — missing: ${(symptom.missing_fields || []).join(", ")}`,
-          });
-        } else if (symptom?.assessment_status === "error") {
-          botMessages.push({
-            role: "bot",
-            text: `[Agent 2] Error: ${symptom.error || "unknown error"}`,
-          });
-        }
-
-        // ── Agent 3: Image Assessment ─────────────────────────────────────
-        if (image && Object.keys(image).length > 0) {
-          if (image.image_validity === "unusable") {
-            botMessages.push({
-              role: "bot",
-              text: `[Agent 3] Image could not be assessed: ${image.local_interpretation || "unusable image"}`,
-            });
-          } else if (image.image_prediction && image.image_prediction !== "unknown") {
-            const imgConf = image.confidence != null
-              ? ` — ${Math.round(image.confidence * 100)}% confidence`
-              : "";
-            botMessages.push({
-              role: "bot",
-              text: `[Agent 3] Image assessment: ${image.image_prediction}${imgConf}`,
-            });
-
-            if (image.local_interpretation) {
-              botMessages.push({
-                role: "bot",
-                text: image.local_interpretation,
-              });
-            }
-
-            if (image.alternatives?.length) {
-              const imgAlts = image.alternatives
-                .map(a => `${a.condition} (${Math.round((a.confidence ?? 0) * 100)}%)`)
-                .join(", ");
-              botMessages.push({
-                role: "bot",
-                text: `Image — other possibilities: ${imgAlts}`,
-              });
-            }
-
-            if (image.uncertainty_flag) {
-              botMessages.push({
-                role: "bot",
-                text: `Note: Image result has low confidence — veterinary review recommended.`,
-              });
-            }
-
-            if (image.possible_out_of_scope) {
-              botMessages.push({
-                role: "bot",
-                text: `Note: Image may be outside supported scope. Results may not apply.`,
-              });
-            }
-          } else if (image.error) {
-            botMessages.push({
-              role: "bot",
-              text: `[Agent 3] Image agent error: ${image.error}`,
-            });
-          }
-        }
 
         setMessages([...updatedMessages, ...botMessages]);
         setLastQuestion(null);
@@ -294,7 +205,7 @@ export default function ChatPage() {
 
           {/* ── Case Profile panel ── */}
           <div style={{ width: "260px", flexShrink: 0, borderLeft: `1px solid ${c.border}`, background: c.panelBg, overflowY: "auto" }}>
-            <CaseProfilePanel profile={petProfile} symptoms={extractedSymptoms} imageAssessment={imageAssessment} />
+            <CaseProfilePanel profile={petProfile} symptoms={extractedSymptoms} imageAssessment={imageAssessment} triageResult={triageResult} />
           </div>
         </div>
       </div>

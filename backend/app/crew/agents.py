@@ -11,7 +11,7 @@ from app.config import settings
 from app.tools.intake_tools.entity_extractor import EntityExtractorTool
 from app.tools.symptom_tools import SymptomClassifierTool
 from app.tools.image_tools import ImageClassifierTool
-# from app.tools.triage_tools import UrgencyCalculatorTool     # uncomment when ready
+from app.tools.triage_tools import UrgencyCalculatorTool     # uncomment when ready
 from app.agents.symptom_agent.prompt import ROLE, GOAL, BACKSTORY, CONSTRAINTS
 
 
@@ -100,7 +100,7 @@ def make_triage_agent() -> Agent:
             "You never diagnose definitively. When uncertainty is present "
             "you always recommend veterinary consultation."
         ),
-        tools=[],  # TODO: add UrgencyCalculatorTool() here
+        tools=[UrgencyCalculatorTool()],
         llm=_ollama_llm(),
         verbose=True,
     )   

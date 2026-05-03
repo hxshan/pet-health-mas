@@ -1,6 +1,6 @@
 import { useTheme } from "../context/ThemeContext";
 
-export default function CaseProfilePanel({ profile, symptoms, imageAssessment }) {
+export default function CaseProfilePanel({ profile, symptoms, imageAssessment, triageResult }) {
   const { c } = useTheme();
 
   const S = {
@@ -54,7 +54,16 @@ export default function CaseProfilePanel({ profile, symptoms, imageAssessment })
   const hasAnyProfile = profile && Object.values(profile).some(v => v && v !== "unknown");
   const hasSymptoms   = symptoms && symptoms.length > 0;
   const hasImage      = imageAssessment && imageAssessment.image_prediction && imageAssessment.image_prediction !== "unknown";
-  const isActive      = hasAnyProfile || hasSymptoms || hasImage;
+  const hasTriage     = triageResult && triageResult.urgency_level;
+  const isActive      = hasAnyProfile || hasSymptoms || hasImage || hasTriage;
+
+  const URGENCY_COLOR = {
+    urgent:      "#f87171",
+    vet_soon:    "#fb923c",
+    monitor:     "#facc15",
+    "non-urgent":"#4ade80",
+  };
+  const urgencyColor = triageResult ? (URGENCY_COLOR[triageResult.urgency_level] || c.cyan) : c.cyan;
 
   return (
     <div style={S.root}>
@@ -160,6 +169,50 @@ export default function CaseProfilePanel({ profile, symptoms, imageAssessment })
           <div style={S.emptyBox}>
             <p style={S.emptyText}>Start the conversation to begin<br />building the case profile.</p>
           </div>
+        )}
+
+        {/* Triage Report (Agent 4) */}
+        {hasTriage && (
+          <>
+            <div style={S.divider} />
+            <div>
+              <p style={S.sectionLabel}>Triage Report</p>
+
+              {/* Urgency badge */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                <span style={{
+                  fontSize: "11px", fontWeight: 700, padding: "3px 10px",
+                  borderRadius: "999px", letterSpacing: "0.05em",
+                  background: urgencyColor + "1a",
+                  border: `1px solid ${urgencyColor}55`,
+                  color: urgencyColor,
+                }}>
+                  {triageResult.urgency_level?.replace("_", " ").toUpperCase()}
+                </span>
+                {triageResult.uncertainty_status && triageResult.uncertainty_status !== "confident" && (
+                  <span style={{ fontSize: "10px", color: c.textDim }}>
+                    {triageResult.uncertainty_status}
+                  </span>
+                )}
+              </div>
+
+              {/* Recommendation */}
+              {triageResult.recommendation && (
+                <div style={{ ...S.fieldRow(true), marginBottom: "6px" }}>
+                  <span style={{ fontSize: "12px", color: c.textMuted, lineHeight: "1.5" }}>
+                    {triageResult.recommendation}
+                  </span>
+                </div>
+              )}
+
+              {/* Reasoning */}
+              {triageResult.reasoning && (
+                <p style={{ fontSize: "11px", color: c.textDim, padding: "0 4px", lineHeight: "1.5", margin: 0 }}>
+                  {triageResult.reasoning}
+                </p>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

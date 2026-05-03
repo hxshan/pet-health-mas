@@ -1,6 +1,196 @@
 import { useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 
+const URGENCY_COLOR = {
+  urgent:       "#f87171",
+  vet_soon:     "#fb923c",
+  monitor:      "#facc15",
+  "non-urgent": "#4ade80",
+};
+
+const URGENCY_LABEL = {
+  urgent:       "URGENT",
+  vet_soon:     "VET SOON",
+  monitor:      "MONITOR",
+  "non-urgent": "NON-URGENT",
+};
+
+function ConfBar({ value, color, bg }) {
+  const pct = Math.round((value ?? 0) * 100);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ flex: 1, height: "5px", borderRadius: "3px", background: bg, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: "3px", background: color, transition: "width 0.4s ease" }} />
+      </div>
+      <span style={{ fontSize: "11px", fontWeight: 600, color, minWidth: "32px", textAlign: "right" }}>{pct}%</span>
+    </div>
+  );
+}
+
+function FinalReportCard({ data, c }) {
+  const { finalReport: fr, triageResult: tr, symptomAssessment: sym, imageAssessment: img } = data;
+  const urgency      = tr?.urgency_level || "monitor";
+  const urgencyColor = URGENCY_COLOR[urgency] || c.cyan;
+  const urgencyLabel = URGENCY_LABEL[urgency] || urgency.toUpperCase();
+
+  const summary      = fr?.triage_summary?.summary || "";
+  const agreementExp = fr?.triage_summary?.agreement_explanation || "";
+  const confExp      = fr?.triage_summary?.confidence_explanation || "";
+  const recommendation = fr?.recommendations?.primary || tr?.recommendation || "";
+  const nextSteps    = fr?.recommendations?.next_steps || "";
+  const reasoning    = fr?.reasoning || tr?.reasoning || "";
+  const disclaimer   = fr?.disclaimer || "";
+
+  const symPred  = sym?.top_prediction;
+  const symConf  = sym?.confidence;
+  const symAlts  = sym?.alternatives || [];
+  const imgPred  = img?.image_prediction;
+  const imgConf  = img?.confidence;
+  const hasImage = img && img.image_validity && !["none","unusable","error",""].includes(img.image_validity);
+
+  const card = {
+    borderRadius: "16px",
+    border: `1px solid ${urgencyColor}33`,
+    background: c.panelBg,
+    overflow: "hidden",
+    width: "100%",
+  };
+  const headerBg = {
+    background: `linear-gradient(135deg, ${urgencyColor}18 0%, ${c.panelBg} 100%)`,
+    borderBottom: `1px solid ${urgencyColor}22`,
+    padding: "16px 20px",
+    display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px",
+  };
+  const badge = {
+    fontSize: "10px", fontWeight: 700, padding: "4px 12px",
+    borderRadius: "999px", letterSpacing: "0.08em",
+    background: urgencyColor + "22",
+    border: `1px solid ${urgencyColor}66`,
+    color: urgencyColor, flexShrink: 0,
+  };
+  const body   = { padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" };
+  const label  = { fontSize: "10px", fontWeight: 600, color: c.sectionLabelColor, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7, marginBottom: "6px" };
+  const divider = { borderTop: `1px solid ${c.panelDivider}` };
+  const prose  = { fontSize: "13px", color: c.botText, lineHeight: "1.7", margin: 0 };
+  const muted  = { fontSize: "12px", color: c.textMuted, lineHeight: "1.6", margin: 0 };
+  const dim    = { fontSize: "11px", color: c.textDim, lineHeight: "1.6", margin: 0 };
+
+  return (
+    <div style={card}>
+
+      {/* ── Header: urgency + title ── */}
+      <div style={headerBg}>
+        <div>
+          <p style={{ fontSize: "13px", fontWeight: 600, color: c.text, margin: "0 0 4px", letterSpacing: "-0.1px" }}>
+            Triage Report
+          </p>
+          <p style={{ fontSize: "12px", color: c.textMuted, margin: 0 }}>
+            {symPred ? `${symPred.replace(/_/g, " ")} · Agent 4 synthesis` : "Agent 4 synthesis"}
+          </p>
+        </div>
+        <span style={badge}>{urgencyLabel}</span>
+      </div>
+
+      <div style={body}>
+
+        {/* ── Summary (LLM-generated) ── */}
+        {summary && (
+          <div>
+            <p style={label}>Summary</p>
+            <p style={prose}>{summary}</p>
+          </div>
+        )}
+
+        {/* ── Recommendation + next steps ── */}
+        {(recommendation || nextSteps) && (
+          <>
+            <div style={divider} />
+            <div>
+              <p style={label}>Recommendation</p>
+              {recommendation && <p style={prose}>{recommendation}</p>}
+              {nextSteps && (
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px", alignItems: "flex-start" }}>
+                  <span style={{ fontSize: "14px", flexShrink: 0, marginTop: "1px" }}>→</span>
+                  <p style={muted}>{nextSteps}</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Agent 2 + Agent 3 evidence ── */}
+        <div style={divider} />
+        <div>
+          <p style={label}>Supporting Evidence</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+
+            {/* Symptom model */}
+            {symPred && (
+              <div style={{ background: c.fieldBg, borderRadius: "10px", padding: "10px 12px", borderLeft: `3px solid ${c.cyan}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: symConf != null ? "6px" : 0 }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: c.cyan, textTransform: "uppercase", letterSpacing: "0.06em" }}>Agent 2 — Symptoms</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: c.text }}>{symPred.replace(/_/g, " ")}</span>
+                </div>
+                {symConf != null && <ConfBar value={symConf} color={c.cyan} bg={c.imgBarBg} />}
+                {symAlts.length > 0 && (
+                  <p style={{ ...dim, marginTop: "6px" }}>
+                    Also considered: {symAlts.map(a => `${(a.condition||"").replace(/_/g," ")} (${Math.round((a.confidence ?? a.probability ?? 0) * 100)}%)`).join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Image model */}
+            {hasImage && imgPred && (
+              <div style={{ background: c.fieldBg, borderRadius: "10px", padding: "10px 12px", borderLeft: `3px solid ${c.pink}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: imgConf != null ? "6px" : 0 }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: c.pink, textTransform: "uppercase", letterSpacing: "0.06em" }}>Agent 3 — Image</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: c.text }}>{imgPred.replace(/_/g, " ")}</span>
+                </div>
+                {imgConf != null && <ConfBar value={imgConf} color={c.pink} bg={c.imgBarBg} />}
+              </div>
+            )}
+
+            {!hasImage && (
+              <p style={{ ...dim, fontStyle: "italic" }}>No image was submitted for this case.</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Agreement / confidence explanations ── */}
+        {(agreementExp || confExp) && (
+          <>
+            <div style={divider} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {agreementExp && <p style={muted}>{agreementExp}</p>}
+              {confExp       && <p style={dim}>{confExp}</p>}
+            </div>
+          </>
+        )}
+
+        {/* ── Reasoning trace ── */}
+        {reasoning && (
+          <>
+            <div style={divider} />
+            <div>
+              <p style={label}>Reasoning</p>
+              <p style={dim}>{reasoning}</p>
+            </div>
+          </>
+        )}
+
+        {/* ── Disclaimer ── */}
+        {disclaimer && (
+          <div style={{ background: `${urgencyColor}0d`, border: `1px solid ${urgencyColor}22`, borderRadius: "8px", padding: "10px 12px" }}>
+            <p style={{ ...dim, fontStyle: "italic" }}>⚠ {disclaimer}</p>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 export default function ChatWindow({ messages }) {
   const { c } = useTheme();
   const bottomRef = useRef(null);
@@ -94,6 +284,8 @@ export default function ChatWindow({ messages }) {
                     <span style={{ ...S.dot, animationName: "bounce", animationDuration: "1s", animationDelay: "160ms", animationIterationCount: "infinite" }} />
                     <span style={{ ...S.dot, animationName: "bounce", animationDuration: "1s", animationDelay: "320ms", animationIterationCount: "infinite" }} />
                   </div>
+                ) : msg.type === "final_report" ? (
+                  <FinalReportCard data={msg.data} c={c} />
                 ) : (
                   <p style={S.botText}>{msg.text}</p>
                 )}

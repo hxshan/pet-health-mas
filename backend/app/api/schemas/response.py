@@ -14,3 +14,4 @@ class AnalyzeCaseResponse(BaseModel):
     # Live case-building fields (populated after every Agent 1 run)
     pet_profile: Optional[Dict[str, Any]] = {}
     extracted_symptoms: Optional[List[str]] = []
+    triage_result: Optional[Dict[str, Any]] = {}

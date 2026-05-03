@@ -41,9 +41,17 @@ def _load() -> None:
         meta = pickle.load(f)
 
     _xgb_model       = model
-    _feature_columns = meta["feature_columns"]
     _label_encoders  = meta["label_encoders"]
     _diag_classes    = meta["diag_classes"]
+
+    # Use the booster's own feature list as the ground truth.
+    # This prevents a feature_names mismatch if the pkl's feature_columns
+    # was updated with new fields that the saved XGBoost JSON wasn't retrained on.
+    booster_features = model.get_booster().feature_names
+    if booster_features:
+        _feature_columns = booster_features
+    else:
+        _feature_columns = meta["feature_columns"]
 
 
 def _ensure_loaded() -> Optional[str]:
